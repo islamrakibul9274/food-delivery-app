@@ -1,0 +1,35 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependency directories
+# (This covers both client/node_modules and server/node_modules)
+node_modules/
+dist/
+dist-ssr/
+build/
+
+# Critical: Sensitive Credentials
+# (Matches the file I saw in your server folder)
+pass.txt
+.env
+.env.local
+.env.*.local
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project specific
+client/dist/
+server/node_modules/
