@@ -11,7 +11,7 @@ const port = process.env.PORT || 5000;
 app.use(cors({
     origin: [
         "http://localhost:5173", 
-        "https://your-food-app.vercel.app" 
+        "https://food-delivery-app-smoky-sigma.vercel.app" 
     ],
     credentials: true
 }));
