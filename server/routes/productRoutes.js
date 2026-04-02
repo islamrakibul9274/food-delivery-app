@@ -1,20 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const Product = require('../models/Product');
+const Product = require('../models/product'); // 👈 Fixed lowercase 'p'
 
-// POST: Add a new product (Admin Function)
+// POST: Add a new product
 router.post('/add-product', async (req, res) => {
     try {
         const { name, weight, price, image, category } = req.body;
-        
-        const newProduct = new Product({
-            name,
-            weight,
-            price,
-            image,
-            category
-        });
-
+        const newProduct = new Product({ name, weight, price, image, category });
         const savedProduct = await newProduct.save();
         res.status(201).json(savedProduct);
     } catch (error) {
@@ -22,19 +14,17 @@ router.post('/add-product', async (req, res) => {
     }
 });
 
-// GET: Fetch all products (For your MenuGrid)
+// GET: Fetch all products
 router.get('/', async (req, res) => {
     try {
-        const products = await Product.find(); // Fetches everything from MongoDB
+        const products = await Product.find();
         res.status(200).json(products);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 });
 
-// server/routes/productRoutes.js
-
-// 1. Delete a product by ID
+// DELETE: Remove product
 router.delete('/:id', async (req, res) => {
     try {
         await Product.findByIdAndDelete(req.params.id);
@@ -44,7 +34,7 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-// 2. Update product details (Price, Name, etc.)
+// PUT: Update product
 router.put('/:id', async (req, res) => {
     try {
         const updatedProduct = await Product.findByIdAndUpdate(
