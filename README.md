@@ -7,7 +7,7 @@ A high-performance, responsive **MERN stack** application designed for seamless 
 
 ## 🚀 Live Links
 
-  * **Frontend (Vercel):** [https://food-delivery-app-smoky-sigma.vercel.app](https://www.google.com/search?q=https://food-delivery-app-smoky-sigma.vercel.app)
+  * **Frontend (Vercel):** [https://food-delivery-app-smoky-sigma.vercel.app](https://food-delivery-app-smoky-sigma.vercel.app)
   * **Backend API (Render):** [https://fast-food-backend-v1.onrender.com](https://fast-food-backend-v1.onrender.com)
 
 -----
