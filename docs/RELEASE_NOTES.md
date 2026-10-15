@@ -1,38 +1,53 @@
-# Local redesign — review build
+# FOOD release — 15 October 2026
 
-Branch: `improve/restaurant-experience`. No commits have been pushed, no production deployments triggered, and no production user/menu/order records changed.
+Application commit: `9d5e820` on `main` (storefront, secure ordering/admin API, and persistent menu image uploads). The README is updated after live verification.
 
-## Available locally
+## Live applications
 
-- New storefront, menu and dish details; URL-based category/search/sort filters; vegetarian filter; favorites; consistent navigation/footer; complete supporting pages and helpful fallbacks.
-- Warm, restrained typography and food photography. A CSS device preview replaces the blurry phone; an installable-web-app section replaces inactive store badges. No new AI imagery or invented customer reviews/ratings were used.
-- Persistent bag with working removal/quantities, dish add-ons and notes; delivery/pickup checkout; server-priced totals and availability; cash payment; confirmation, status timeline, cancellation before confirmation, reorder with current menu prices.
-- Cookie sessions, backend current-user/admin/ownership checks, authenticated profiles and addresses, rate limits, one-use password reset, and logout/session invalidation. The previous browser-stored JWT is no longer used. Existing preview passwords still work after signing in again.
-- Admin overview with explicitly defined paid metrics and best sellers; order search/status/date filters and pagination; validated fulfilment transitions and cash-payment recording; dish editing/archiving; customer order counts; support inbox; restaurant settings and activity history.
-- Same-origin development/API proxy, environment examples, one-command development startup, SPA deployment configuration, basic metadata/indexing rules, PWA icons/offline explanation, and CI checks.
-- Public assets reduced from 45.85 MB to approximately 0.80 MB. This is a file-size comparison, not a measured page-speed or field Core Web Vitals result.
+- Website: https://food-delivery-app-smoky-sigma.vercel.app
+- Primary API: https://fast-food-backend-v1.onrender.com
+- Primary readiness: https://fast-food-backend-v1.onrender.com/api/health
+- Secondary API retained: https://food-delivery-api-y8fy.onrender.com
+
+The deployed application is explicitly configured as a demo. Test orders do not result in real deliveries or charges. Sample delivery/pickup settings were authorized by the owner. Existing account roles/passwords, menu items and historical orders were preserved; the release smoke-test records were removed.
+
+## Changes
+
+- Redesigned storefront, menu and dish details; URL-based search/category/sort filters; vegetarian filter; favorites; consistent navigation/footer; supporting pages and recoverable empty/error states.
+- Food photography, restrained typography, and a mobile preview rendered in HTML/CSS. No new AI images or invented reviews/ratings. Public assets were reduced from 45.85 MB to approximately 0.80 MB; this is not a measured Core Web Vitals result.
+- Persistent bag, working removal/quantity controls, catalog-priced add-ons and notes; delivery/pickup checkout; cash/demo payment; idempotent order creation; confirmation, status timeline, cancellation before confirmation, and reordering with current prices.
+- HttpOnly sessions, backend role/ownership checks, private profiles/addresses/orders, authentication rate limits, one-use password-reset tokens and session revocation. Old localStorage JWT sessions are retired; existing account passwords remain valid.
+- Admin order search/status/date filters and pagination, controlled state transitions, payment recording, menu editing/archiving, customer records, support inbox, operational settings, paid-order reporting, best sellers and activity history.
+- Same-origin development/production API proxies, environment examples, Node 24, CI checks, per-page metadata, private-route indexing headers, PWA icons and offline explanation. Private API/order responses are not cached.
 
 ## Verification
 
-- Backend: 12 passing tests, including real MongoDB integration in a unique disposable test database. Tests cover cookie sessions, authorization, ownership, forged prices, duplicate orders, lifecycle transitions, payment reporting, archive snapshots, support privacy, password reset replay, and dish add-on pricing.
-- Frontend: 6 passing component tests in an in-memory DOM, covering menu search/filtering, dish options/cart totals, item removal, login return destination, forged localStorage admin role, and preservation of the cart after failed checkout.
-- Frontend build and ESLint pass. Compatible dependency updates cleared the advisories reported by npm at implementation time.
-- Local API readiness, 21 SPA route responses and 8 public assets passed HTTP checks. The actual frontend proxy also passed signup, HttpOnly cookie forwarding, current-user session lookup, admin denial and logout checks; the disposable check account was removed afterward.
-- Interactive browser/visual QA is outstanding: the computer-use browser connection failed to load its request-header policy and native Chrome access was denied. No claim is made that a real-browser interaction, screenshot review, Lighthouse audit, or physical mobile install test has passed.
+- Local production build and ESLint passed.
+- All 13 backend tests and 6 frontend component tests passed. Upload regression coverage checks permissions, file-byte validation, persistent byte-for-byte retrieval, image deduplication, and saving an uploaded image to a menu item. Database integration tests use a uniquely named disposable database on the development cluster.
+- GitHub Actions passed for the application commit.
+- Vercel production deployment and both Render deployments reached ready/live states.
+- Live HTTPS checks passed for public and nested SPA routes, the production JavaScript asset, both backend database-readiness endpoints, and the frontend API proxy.
+- Live signup/login/current-user lookup passed with Secure, HttpOnly, SameSite=Lax cookies. Anonymous sessions were not exposed through caching; customer access to administrative endpoints was denied.
+- Live demo checkout, duplicate-submission protection, cross-account order privacy, the admin queue, fulfilment transitions through completion, demo payment recording, customer status retrieval and logout passed.
+- Live admin image upload passed through the frontend proxy. Retrieved bytes matched the original PNG; the secondary Render service served the same persistent image. Temporary image-test records were cleaned up.
+- Temporary release-test accounts, sessions, orders and audit entries were removed. The original 3 users, 1 product and 4 orders remained after cleanup.
+- Interactive screenshot/visual QA and physical mobile installation remain separate checks: the browser connection failed and Chrome control was not approved. Automated component/API checks do not establish visual correctness.
 
-## Owner decisions before public launch
+## Hosting configuration
 
-- Confirm the real menu, imagery, prices, allergens, operating location, contact details, delivery areas/fees, minimum order, currency/timezone and opening hours. Sample dishes/settings are confined to the preview database. Opening hours are display text; staff use the accepting-orders switch to close the kitchen.
-- Review business policies and legal contact/jurisdiction/retention details; policy pages are explicit preview drafts.
-- Configure transactional email and an approved sending address for real password-recovery email. Development writes private mail previews to ignored `server/.local-mail/` files. Production recovery is unavailable until configured.
-- Configure server-side image hosting if file upload is needed, and rotate the previously exposed browser image-upload credential separately. Bundled food images and HTTPS URLs already work.
-- Cash is the only implemented payment method. Native apps, social sign-in, online payments/webhooks/refunds, coupons, public reviews, loyalty, GPS tracking and multi-restaurant operations remain future scope. No nonfunctional controls advertise those capabilities.
-- Review responsive rendering, keyboard use, actual PWA installation, browser cookie/proxy behavior, and accessibility in a real browser before production approval.
+Vercel builds `client/` with Node 24 and forwards `/api` to the primary Render service. Its SPA fallback supports direct navigation and refreshes of nested pages.
 
-## Production release boundary
+Both existing Render services share the same database. Each uses Node 24, `npm ci`, `npm start`, `/api/health`, production cookie settings, and the public frontend origin. Build filters watch `server/**` and `.node-version`; documentation-only commits do not restart the API. The secondary service was retained rather than removed.
 
-Both Vercel and two Render services follow `main`. Before merge, identify the second service's purpose, back up production, review the API contract change, and agree a coordinated or compatible staged release. No hosting service should be removed automatically.
+A private owner-only database snapshot was saved before release. Backups, environment secrets, and local recovery-mail previews are ignored by Git and were checked before committing.
 
-Keep the existing production password hashes and roles. New optional product fields and new order fields are additive; legacy orders with no `userId` remain scoped to their authenticated account email, and old totals remain readable. Plan any backfill explicitly rather than automatically running preview seed code against production.
+## Integration and business limits
 
-The new cookie session contract needs the frontend `/api` proxy. Set the backend production origin/URL variables, initialize restaurant settings, test production-like Secure cookies on a staging origin, and verify account/order privacy before promoting. Rollback requires compatible frontend/API commits and restoration of any changed configuration; do not roll back only one side of an incompatible contract.
+- Stripe/online payments, native-store apps, social sign-in, coupons, loyalty, public reviews, GPS tracking and multi-restaurant operations are not implemented or advertised as working controls.
+- Production password recovery needs an email provider and verified sender. Until configured, the API explicitly reports recovery as unavailable; development writes private mail previews to `server/.local-mail/`.
+- Menu uploads use persistent MongoDB media storage, validated image bytes, content-hash deduplication and cacheable public image URLs. The unused legacy image-host credential was removed from Render. No separate image-host account is required.
+- Opening hours are informational. The admin accepting-orders switch controls checkout availability. Confirm real service areas, prices, allergens, operating details and policies before changing from demo to real operations.
+
+## Future deployments
+
+Push reviewed changes to `main` after checks pass. Backend and frontend contracts must remain compatible or be released in a coordinated rollout. Preserve account roles/hashes and historical order snapshots; do not run preview seed code against production. A rollback must account for both the frontend/API versions and any configuration or data changes.

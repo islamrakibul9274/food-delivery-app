@@ -1,6 +1,6 @@
 # FOOD improvement plan
 
-Status: Core local implementation is ready for review following the user’s approval. See RELEASE_NOTES.md for verified checks and remaining launch requirements.
+Status: Core implementation deployed to Vercel and Render as an owner-authorized demo on 15 October 2026. See RELEASE_NOTES.md for verified checks and remaining business/integration requirements.
 
 ## Product direction
 
@@ -156,7 +156,7 @@ Completion: build/lint/critical tests pass, the principal customer/admin journey
 
 ## Decisions and authorization
 
-Approved scope: implement the core roadmap locally on a feature branch using the separate preview database. Production merge/deployment remains excluded. Interactive browser review and external-service configuration are recorded separately in RELEASE_NOTES.md.
+Approved scope: implement the core roadmap locally on a feature branch using the separate preview database. The owner subsequently approved production deployment in demo mode. Interactive browser review and external-service configuration are recorded separately in RELEASE_NOTES.md.
 
 Helpful owner choices: target country/currency and service area; whether native app listings exist; desired brand/name; delivery versus pickup rules; and whether the project remains single-restaurant. Proposed defaults allow local work to begin without waiting for external provider accounts.
 
