@@ -283,6 +283,79 @@ test("support messages are private and customer responses exclude password hashe
   assert.equal(customers.status, 200);
   assert.ok(customers.data.every((u) => !u.password && !u.resetHash));
 });
+test("image uploads verify admin access, validate image bytes and handle provider failures", async () => {
+  const nativeFetch = global.fetch;
+  const previousKey = process.env.IMGBB_API_KEY;
+  process.env.IMGBB_API_KEY = "test-only-image-key";
+  let reject = false;
+  global.fetch = (url, options) =>
+    String(url).startsWith("https://api.imgbb.com/")
+      ? Promise.resolve(
+          new Response(
+            JSON.stringify(
+              reject
+                ? { success: false, error: { code: 42 } }
+                : {
+                    success: true,
+                    data: { url: "https://images.example.test/dish.png" },
+                  },
+            ),
+            {
+              status: reject ? 429 : 200,
+              headers: { "Content-Type": "application/json" },
+            },
+          ),
+        )
+      : nativeFetch(url, options);
+  try {
+    const headers = { "Content-Type": "image/png", Cookie: admin };
+    const image = await fs.readFile(
+      path.join(__dirname, "../../client/public/icon-192.png"),
+    );
+    assert.equal(
+      (
+        await nativeFetch(base + "/uploads", {
+          method: "POST",
+          headers: { ...headers, Cookie: alice },
+          body: image,
+        })
+      ).status,
+      403,
+    );
+    assert.equal(
+      (
+        await nativeFetch(base + "/uploads", {
+          method: "POST",
+          headers,
+          body: Buffer.from("not an image file"),
+        })
+      ).status,
+      400,
+    );
+    const success = await nativeFetch(base + "/uploads", {
+      method: "POST",
+      headers,
+      body: image,
+    });
+    assert.equal(success.status, 200);
+    assert.equal(
+      (await success.json()).url,
+      "https://images.example.test/dish.png",
+    );
+    reject = true;
+    const failed = await nativeFetch(base + "/uploads", {
+      method: "POST",
+      headers,
+      body: image,
+    });
+    assert.equal(failed.status, 502);
+    assert.ok(!(await failed.text()).includes("test-only-image-key"));
+  } finally {
+    global.fetch = nativeFetch;
+    if (previousKey === undefined) delete process.env.IMGBB_API_KEY;
+    else process.env.IMGBB_API_KEY = previousKey;
+  }
+});
 test("reset links are one-use and invalidate old sessions; logout revokes sessions", async () => {
   await request("POST", "/auth/forgot-password", {
     email: "alice@example.test",

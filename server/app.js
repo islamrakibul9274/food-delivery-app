@@ -395,15 +395,40 @@ app.post(
       (b.toString("ascii", 0, 4) === "RIFF" &&
         b.toString("ascii", 8, 12) === "WEBP");
     if (!valid) fail(400, "Unsupported image format.");
-    const form = new FormData();
-    form.set("image", b.toString("base64"));
-    const result = await fetch(
-      `https://api.imgbb.com/1/upload?key=${encodeURIComponent(process.env.IMGBB_API_KEY)}`,
-      { method: "POST", body: form },
-    );
-    if (!result.ok) fail(502, "Image upload failed.");
-    const data = await result.json();
-    if (!data.success) fail(502, "Image upload failed.");
+    const form = new URLSearchParams({ image: b.toString("base64") });
+    let result;
+    try {
+      result = await fetch(
+        `https://api.imgbb.com/1/upload?key=${encodeURIComponent(process.env.IMGBB_API_KEY)}`,
+        {
+          method: "POST",
+          body: form,
+          signal: AbortSignal.timeout(30000),
+          headers: { "User-Agent": "FOOD-Image-Upload/1.0" },
+        },
+      );
+    } catch (error) {
+      console.error("Image host connection failed", { type: error.name });
+      fail(
+        502,
+        "The image host is unavailable. Try an HTTPS image URL instead.",
+      );
+    }
+    const data = await result.json().catch(() => null);
+    if (
+      !result.ok ||
+      !data?.success ||
+      !/^https:\/\//.test(data?.data?.url || "")
+    ) {
+      console.error("Image host rejected upload", {
+        status: result.status,
+        code: data?.error?.code,
+      });
+      fail(
+        502,
+        "The image host rejected this upload. Try an HTTPS image URL instead.",
+      );
+    }
     res.json({ url: data.data.url });
   },
 );
