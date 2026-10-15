@@ -23,6 +23,7 @@ const {
   Settings,
   Message,
   Audit,
+  Media,
 } = require("../lib/models");
 let server,
   base,
@@ -54,7 +55,7 @@ async function request(method, route, body, cookie, headers = {}) {
 before(async () => {
   await mongoose.connect(env.MONGODB_URI, { dbName });
   await Promise.all(
-    [User, Product, Order, Session, Settings, Message, Audit].map((m) =>
+    [User, Product, Order, Session, Settings, Message, Audit, Media].map((m) =>
       m.init(),
     ),
   );
@@ -283,78 +284,59 @@ test("support messages are private and customer responses exclude password hashe
   assert.equal(customers.status, 200);
   assert.ok(customers.data.every((u) => !u.password && !u.resetHash));
 });
-test("image uploads verify admin access, validate image bytes and handle provider failures", async () => {
-  const nativeFetch = global.fetch;
-  const previousKey = process.env.IMGBB_API_KEY;
-  process.env.IMGBB_API_KEY = "test-only-image-key";
-  let reject = false;
-  global.fetch = (url, options) =>
-    String(url).startsWith("https://api.imgbb.com/")
-      ? Promise.resolve(
-          new Response(
-            JSON.stringify(
-              reject
-                ? { success: false, error: { code: 42 } }
-                : {
-                    success: true,
-                    data: { url: "https://images.example.test/dish.png" },
-                  },
-            ),
-            {
-              status: reject ? 429 : 200,
-              headers: { "Content-Type": "application/json" },
-            },
-          ),
-        )
-      : nativeFetch(url, options);
-  try {
-    const headers = { "Content-Type": "image/png", Cookie: admin };
-    const image = await fs.readFile(
-      path.join(__dirname, "../../client/public/icon-192.png"),
-    );
-    assert.equal(
-      (
-        await nativeFetch(base + "/uploads", {
-          method: "POST",
-          headers: { ...headers, Cookie: alice },
-          body: image,
-        })
-      ).status,
-      403,
-    );
-    assert.equal(
-      (
-        await nativeFetch(base + "/uploads", {
-          method: "POST",
-          headers,
-          body: Buffer.from("not an image file"),
-        })
-      ).status,
-      400,
-    );
-    const success = await nativeFetch(base + "/uploads", {
-      method: "POST",
-      headers,
-      body: image,
-    });
-    assert.equal(success.status, 200);
-    assert.equal(
-      (await success.json()).url,
-      "https://images.example.test/dish.png",
-    );
-    reject = true;
-    const failed = await nativeFetch(base + "/uploads", {
-      method: "POST",
-      headers,
-      body: image,
-    });
-    assert.equal(failed.status, 502);
-    assert.ok(!(await failed.text()).includes("test-only-image-key"));
-  } finally {
-    global.fetch = nativeFetch;
-    if (previousKey === undefined) delete process.env.IMGBB_API_KEY;
-    else process.env.IMGBB_API_KEY = previousKey;
-  }
+test("image uploads enforce admin access, validate bytes and persist deduplicated public images", async () => {
+  const image = await fs.readFile(
+    path.join(__dirname, "../../client/public/icon-192.png"),
+  );
+  const headers = { "Content-Type": "image/png", Cookie: admin };
+  assert.equal(
+    (
+      await fetch(base + "/uploads", {
+        method: "POST",
+        headers: { ...headers, Cookie: alice },
+        body: image,
+      })
+    ).status,
+    403,
+  );
+  assert.equal(
+    (
+      await fetch(base + "/uploads", {
+        method: "POST",
+        headers,
+        body: Buffer.from("not an image file"),
+      })
+    ).status,
+    400,
+  );
+  const upload = await fetch(base + "/uploads", {
+    method: "POST",
+    headers,
+    body: image,
+  });
+  assert.equal(upload.status, 200);
+  const { url } = await upload.json();
+  assert.match(url, /^\/api\/media\/[a-f0-9]{24}$/);
+  const publicImage = await fetch(base.replace(/\/api$/, "") + url);
+  assert.equal(publicImage.status, 200);
+  assert.equal(publicImage.headers.get("content-type"), "image/png");
+  assert.ok(publicImage.headers.get("cache-control").includes("immutable"));
+  assert.deepEqual(Buffer.from(await publicImage.arrayBuffer()), image);
+  const again = await fetch(base + "/uploads", {
+    method: "POST",
+    headers,
+    body: image,
+  });
+  assert.equal((await again.json()).url, url);
+  assert.equal(await Media.countDocuments(), 1);
+  const dishWithImage = await request(
+    "POST",
+    "/products",
+    { name: "Uploaded image dish", price: 2, category: "Burger", image: url },
+    admin,
+  );
+  assert.equal(dishWithImage.status, 201);
+  await request("DELETE", `/products/${dishWithImage.data._id}`, null, admin);
 });
 test("reset links are one-use and invalidate old sessions; logout revokes sessions", async () => {
   await request("POST", "/auth/forgot-password", {

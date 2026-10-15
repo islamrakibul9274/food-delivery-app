@@ -141,6 +141,21 @@ const Settings = mongoose.model(
     pickupEnabled: Boolean,
   }),
 );
+const Media = mongoose.model(
+  "Media",
+  new Schema(
+    {
+      hash: { type: String, unique: true, required: true },
+      bytes: { type: Buffer, required: true, select: false },
+      contentType: {
+        type: String,
+        required: true,
+        enum: ["image/jpeg", "image/png", "image/webp"],
+      },
+    },
+    { timestamps: true },
+  ),
+);
 const Message = mongoose.model(
   "Message",
   new Schema(
@@ -160,4 +175,13 @@ const Audit = mongoose.model(
     { timestamps: true },
   ),
 );
-module.exports = { User, Product, Order, Session, Settings, Message, Audit };
+module.exports = {
+  User,
+  Product,
+  Order,
+  Session,
+  Settings,
+  Message,
+  Audit,
+  Media,
+};

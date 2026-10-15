@@ -15,6 +15,7 @@ const {
   Settings,
   Message,
   Audit,
+  Media,
 } = require("./lib/models");
 const {
   fail,
@@ -304,8 +305,15 @@ function productInput(body) {
   )
     fail(400, "Enter a valid price.");
   const image = text(body.image, "Image", 1, 2000);
-  if (!/^https:\/\/[^\s]+$/.test(image) && !/^\/food\/[\w.-]+$/.test(image))
-    fail(400, "Use an HTTPS image URL or a bundled food image.");
+  if (
+    !/^https:\/\/[^\s]+$/.test(image) &&
+    !/^\/food\/[\w.-]+$/.test(image) &&
+    !/^\/api\/media\/[a-f0-9]{24}$/.test(image)
+  )
+    fail(
+      400,
+      "Use an HTTPS image URL, an uploaded image, or a bundled food image.",
+    );
   const rawOptions = body.addOns || [];
   if (!Array.isArray(rawOptions) || rawOptions.length > 8)
     fail(400, "Choose up to eight add-ons.");
@@ -372,73 +380,47 @@ app.delete("/api/products/:id", auth, admin, async (req, res) => {
   await audit(req, "Archived dish", product.name);
   res.status(204).end();
 });
+// Menu images are persistent public assets. Account and order responses remain private.
+app.get("/api/media/:id", async (req, res) => {
+  const media = await Media.findById(id(req.params.id)).select("+bytes");
+  if (!media) fail(404, "Image not found.");
+  res.set("Content-Type", media.contentType);
+  res.set("Cache-Control", "public, max-age=31536000, immutable");
+  res.send(Buffer.from(media.bytes));
+});
 app.post(
   "/api/uploads",
   auth,
   admin,
   express.raw({
     type: ["image/jpeg", "image/png", "image/webp"],
-    limit: "5mb",
+    limit: "4mb",
   }),
   async (req, res) => {
-    if (!process.env.IMGBB_API_KEY)
-      fail(
-        503,
-        "Image upload is not configured. Use an HTTPS image URL instead.",
-      );
-    if (!Buffer.isBuffer(req.body) || req.body.length < 12)
-      fail(400, "Choose a JPEG, PNG, or WebP image under 5 MB.");
     const b = req.body;
-    const valid =
-      b.subarray(0, 3).equals(Buffer.from([255, 216, 255])) ||
-      b.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) ||
-      (b.toString("ascii", 0, 4) === "RIFF" &&
-        b.toString("ascii", 8, 12) === "WEBP");
-    if (!valid) fail(400, "Unsupported image format.");
-    const extension = b[0] === 255 ? "jpeg" : b[0] === 137 ? "png" : "webp";
-    const form = new FormData();
-    form.set(
-      "image",
-      new Blob([b], { type: `image/${extension}` }),
-      `dish.${extension}`,
-    );
-    let result;
+    if (!Buffer.isBuffer(b) || b.length < 12)
+      fail(400, "Choose a JPEG, PNG, or WebP image under 4 MB.");
+    const jpeg = b.subarray(0, 3).equals(Buffer.from([255, 216, 255]));
+    const png = b
+      .subarray(0, 8)
+      .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+    const webp =
+      b.toString("ascii", 0, 4) === "RIFF" &&
+      b.toString("ascii", 8, 12) === "WEBP";
+    if (!jpeg && !png && !webp) fail(400, "Unsupported image format.");
+    const digest = crypto.createHash("sha256").update(b).digest("hex");
+    const contentType = jpeg ? "image/jpeg" : png ? "image/png" : "image/webp";
     try {
-      result = await fetch(
-        `https://api.imgbb.com/1/upload?key=${encodeURIComponent(process.env.IMGBB_API_KEY)}`,
-        {
-          method: "POST",
-          body: form,
-          signal: AbortSignal.timeout(30000),
-          headers: { "User-Agent": "FOOD-Image-Upload/1.0" },
-        },
+      await Media.updateOne(
+        { hash: digest },
+        { $setOnInsert: { bytes: b, contentType } },
+        { upsert: true },
       );
     } catch (error) {
-      console.error("Image host connection failed", { type: error.name });
-      fail(
-        502,
-        "The image host is unavailable. Try an HTTPS image URL instead.",
-      );
+      if (error.code !== 11000) throw error;
     }
-    const data = await result.json().catch(() => null);
-    if (
-      !result.ok ||
-      !data?.success ||
-      !/^https:\/\//.test(data?.data?.url || "")
-    ) {
-      console.error("Image host rejected upload", {
-        status: result.status,
-        code: data?.error?.code,
-        message: String(data?.error?.message || "")
-          .replaceAll(process.env.IMGBB_API_KEY, "[redacted]")
-          .slice(0, 160),
-      });
-      fail(
-        502,
-        "The image host rejected this upload. Try an HTTPS image URL instead.",
-      );
-    }
-    res.json({ url: data.data.url });
+    const media = await Media.findOne({ hash: digest }).select("_id");
+    res.json({ url: `/api/media/${media._id}` });
   },
 );
 const ownerQuery = (user) => ({

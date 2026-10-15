@@ -581,8 +581,8 @@ export function ProductEditor() {
   const upload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024)
-      return setError("Choose an image smaller than 5 MB.");
+    if (file.size > 4 * 1024 * 1024)
+      return setError("Choose an image smaller than 4 MB.");
     setUploading(true);
     setError("");
     try {
@@ -691,7 +691,7 @@ export function ProductEditor() {
               required
             />
             <label className="field">
-              <span>Or upload JPEG, PNG, WebP (up to 5 MB)</span>
+              <span>Or upload JPEG, PNG, WebP (up to 4 MB)</span>
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
@@ -699,8 +699,8 @@ export function ProductEditor() {
               />
             </label>
             <p className="hint">
-              Uploads require the server image-host integration. Bundled images
-              and HTTPS URLs work without it.
+              Uploaded images are public menu assets. HTTPS image URLs also
+              work.
             </p>
           </div>
         </div>
