@@ -1,0 +1,24 @@
+name: Check FOOD
+on:
+  pull_request:
+  push:
+    branches: [main, 'improve/**']
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            server/package-lock.json
+      - run: npm run setup
+      - run: npm run lint
+      - run: npm run build
+      - run: npm test --prefix client
+      - run: node --test server/test/domain.test.js

@@ -33,3 +33,7 @@ desktop.ini
 # Project specific
 client/dist/
 server/node_modules/
+# Local password-reset mail previews
+server/.local-mail/
+# Private database snapshots used before releases
+server/.backups/

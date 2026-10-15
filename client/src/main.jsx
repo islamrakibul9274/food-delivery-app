@@ -1,13 +1,17 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import './index.css'
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
-import { router } from './routes/Router'
-import { CartProvider } from './context/CartContext';
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <CartProvider> {/* Now everyone can talk to the cart! */}
+import "./index.css";
+import { router } from "./routes/Router";
+import AppProvider from "./providers/AppProvider";
+createRoot(document.getElementById("root")).render(
+  <StrictMode>
+    <AppProvider>
       <RouterProvider router={router} />
-    </CartProvider>
-  </React.StrictMode>,
-)
+    </AppProvider>
+  </StrictMode>,
+);
+if (import.meta.env.PROD && "serviceWorker" in navigator)
+  window.addEventListener("load", () =>
+    navigator.serviceWorker.register("/sw.js").catch(() => {}),
+  );
