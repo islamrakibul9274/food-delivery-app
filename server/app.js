@@ -395,7 +395,13 @@ app.post(
       (b.toString("ascii", 0, 4) === "RIFF" &&
         b.toString("ascii", 8, 12) === "WEBP");
     if (!valid) fail(400, "Unsupported image format.");
-    const form = new URLSearchParams({ image: b.toString("base64") });
+    const extension = b[0] === 255 ? "jpeg" : b[0] === 137 ? "png" : "webp";
+    const form = new FormData();
+    form.set(
+      "image",
+      new Blob([b], { type: `image/${extension}` }),
+      `dish.${extension}`,
+    );
     let result;
     try {
       result = await fetch(
@@ -423,6 +429,9 @@ app.post(
       console.error("Image host rejected upload", {
         status: result.status,
         code: data?.error?.code,
+        message: String(data?.error?.message || "")
+          .replaceAll(process.env.IMGBB_API_KEY, "[redacted]")
+          .slice(0, 160),
       });
       fail(
         502,
